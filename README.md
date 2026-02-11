@@ -1,46 +1,65 @@
+<img src="docs/logo.jpg" alt="LetsJSON Logo" style="display: block; margin: 0 auto; width: 230px; height: 200px;"/>
+
 # LetsJSON
 Let LLMs generate exactly the JSON you define.
 
-让模型输出强约束 JSON：
-- 按 schema 校验字段与类型
-- 不符合时自动重试（默认 3 次）
-- 超过重试次数仍失败则抛错
+[中文文档](docs/zh.md)
 
-## 使用
+Generate strongly constrained JSON from LLM outputs:
+- Validate fields and types against your schema
+- Auto-retry on invalid outputs (default: 3 attempts)
+- Raise an error if all retries fail or return empty value
+
+## Installation
 
 ```bash
 uv add letsjson
 ```
-或者：
+
+or:
 
 ```bash
 pip install letsjson
 ```
 
+## Usage
+
 ```python
 from openai import OpenAI
 from letsjson import LetsJSON
-import os
+
 client = OpenAI(
-    api_key="你的 API key",
-    base_url="你的 API base URL",
+    api_key="your API key",
+    base_url="your API base URL",
 )
-generator = LetsJSON(client, model="你的 model name")  # repeat 可选，默认 3
+generator = LetsJSON(client, model="your model name")  # repeat is optional, default is 3
 
 schema = {
     "title": str,
     "steps": [{"time": str, "location": str, "detail": str}],
 }
-result = generator.gen('''给我一个2天1夜的上海旅游计划''', schema)
+result = generator.gen("Give me a 2-day London travel plan", schema)
 print(result)
 
+# return:
+# {
+#   "title": "2-Day London Travel Plan",
+#   "steps": [
+#     {"time": "Day 1 Morning",
+#      "location": "British Museum", 
+#      "detail": "Explore ancient artifacts and world history."},
+#    {"time": "Day 1 Afternoon",
+#     "location": "Covent Garden",
+#     "detail": "Enjoy street performances and shopping."},
+#   ...
+#  ]
 ```
 
-## Schema 支持
+## Supported Schema Types
 
-- 对象：`{"name": str, "age": int}`
-- 列表：`{"items": [str]}`（列表 schema 必须且只能有 1 个元素类型）
-- 嵌套：`{"user": {"name": str}, "tags": [str]}`
-- 类型严格校验：
-  - `int` 不接受 `bool`
-  - `float` 接受 `int` 和 `float`（不接受 `bool`）
+- Object: `{"name": str, "age": int}`
+- List: `{"items": [str]}` (list schema must contain exactly one element type)
+- Nested: `{"user": {"name": str}, "tags": [str]}`
+- Strict type checks:
+  - `int` does not accept `bool`
+  - `float` accepts `int` and `float` (does not accept `bool`)
