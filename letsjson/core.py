@@ -62,41 +62,54 @@ class LetsJSON:
         )
 
     def _call_model(self, prompt: str) -> str:
-        responses = getattr(self.client, "responses", None)
-        if responses is not None and hasattr(responses, "create"):
-            result = responses.create(model=self.model, input=prompt)
-            text = getattr(result, "output_text", None)
-            if isinstance(text, str) and text.strip():
-                return text
-
-            # Fallback: collect text chunks from response output structure.
-            output = getattr(result, "output", None) or []
-            chunks: list[str] = []
-            for item in output:
-                content = getattr(item, "content", None) or []
-                for part in content:
-                    part_text = getattr(part, "text", None)
-                    if isinstance(part_text, str):
-                        chunks.append(part_text)
-            if chunks:
-                return "\n".join(chunks)
-
+        chat_error: Exception | None = None
         chat = getattr(self.client, "chat", None)
         completions = getattr(chat, "completions", None) if chat is not None else None
         if completions is not None and hasattr(completions, "create"):
-            result = completions.create(
-                model=self.model, messages=[{"role": "user", "content": prompt}]
+            try:
+                result = completions.create(
+                    model=self.model, messages=[{"role": "user", "content": prompt}]
+                )
+                choices = getattr(result, "choices", None) or []
+                if choices:
+                    message = getattr(choices[0], "message", None)
+                    content = getattr(message, "content", "")
+                    if isinstance(content, str):
+                        return content
+            except Exception as exc:  # noqa: BLE001
+                chat_error = exc
+
+        responses = getattr(self.client, "responses", None)
+        if responses is not None and hasattr(responses, "create"):
+            try:
+                result = responses.create(model=self.model, input=prompt)
+                text = getattr(result, "output_text", None)
+                if isinstance(text, str) and text.strip():
+                    return text
+
+                # Fallback: collect text chunks from response output structure.
+                output = getattr(result, "output", None) or []
+                chunks: list[str] = []
+                for item in output:
+                    content = getattr(item, "content", None) or []
+                    for part in content:
+                        part_text = getattr(part, "text", None)
+                        if isinstance(part_text, str):
+                            chunks.append(part_text)
+                if chunks:
+                    return "\n".join(chunks)
+            except Exception:  # noqa: BLE001
+                pass
+
+        if chat_error is not None:
+            raise LetsJSONGenerationError(
+                "chat.completions.create failed and no compatible responses.create fallback "
+                f"succeeded. Original error: {chat_error}"
             )
-            choices = getattr(result, "choices", None) or []
-            if choices:
-                message = getattr(choices[0], "message", None)
-                content = getattr(message, "content", "")
-                if isinstance(content, str):
-                    return content
 
         raise LetsJSONGenerationError(
-            "Unsupported client: expected OpenAI client with responses.create or "
-            "chat.completions.create."
+            "Unsupported client: expected OpenAI client with chat.completions.create or "
+            "responses.create."
         )
 
     def _parse_json(self, text: str) -> Any:
