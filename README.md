@@ -1,4 +1,6 @@
-<img src="docs/logo.jpg" alt="LetsJSON Logo" style="display: block; margin: 0 auto; width: 230px; height: 200px;"/>
+<p align="center">
+  <img src="docs/logo.jpg" alt="LetsJSON Logo" width="230" height="200" />
+</p>
 
 # LetsJSON
 Let LLMs generate exactly the JSON you define.
