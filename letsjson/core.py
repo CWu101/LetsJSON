@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import re
 from typing import Any
+from typing import Literal
 
 
 class LetsJSONError(Exception):
@@ -25,12 +26,17 @@ class LetsJSON:
         self.repeat = repeat
         self.model = model
 
-    def gen(self, prompt: str, schema: dict[str, Any]) -> dict[str, Any]:
+    def gen(
+        self, prompt: str, schema: dict[str, Any], on_failure: Literal["raise", "none"] = "raise"
+    ) -> dict[str, Any] | None:
         if not isinstance(schema, dict):
             raise TypeError("schema must be a dict")
+        if on_failure not in {"raise", "none"}:
+            raise ValueError("on_failure must be 'raise' or 'none'")
 
         last_error: Exception | None = None
         for attempt in range(1, self.repeat + 1):
+            # print(f"Attempt {attempt} to generate JSON...")
             full_prompt = self._build_prompt(prompt, schema, attempt, last_error)
             try:
                 raw = self._call_model(full_prompt)
@@ -39,6 +45,9 @@ class LetsJSON:
                 return data
             except Exception as exc:  # noqa: BLE001
                 last_error = exc
+
+        if on_failure == "none":
+            return None
 
         raise LetsJSONGenerationError(
             f"Failed to generate valid JSON after {self.repeat} attempts. "
