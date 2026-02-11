@@ -1,3 +1,6 @@
+# Test orders
+.scripts/
+
 # Python cache
 __pycache__/
 *.py[cod]
