@@ -18,7 +18,7 @@ class LetsJSONGenerationError(LetsJSONError):
 
 
 class LetsJSON:
-    def __init__(self, client: Any, repeat: int = 3, model: str = "gpt-4.1-mini") -> None:
+    def __init__(self, client: Any, model: str, repeat: int = 3) -> None:
         if repeat < 1:
             raise ValueError("repeat must be >= 1")
         self.client = client
@@ -58,7 +58,8 @@ class LetsJSON:
             f"User request: {prompt}\n"
             f"Required JSON schema: {schema_text}\n"
             f"Attempt: {attempt}\n"
-            f"{fix_hint}"
+            f"{fix_hint}\n"
+            f"Use the language that the user said.\n"
         )
 
     def _call_model(self, prompt: str) -> str:

@@ -1,5 +1,5 @@
 # Test orders
-.scripts/
+scripts
 
 # Python cache
 __pycache__/
