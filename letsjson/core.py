@@ -5,19 +5,19 @@ import re
 from typing import Any
 
 
-class AnyJSONError(Exception):
+class LetsJSONError(Exception):
     pass
 
 
-class AnyJSONValidationError(AnyJSONError):
+class LetsJSONValidationError(LetsJSONError):
     pass
 
 
-class AnyJSONGenerationError(AnyJSONError):
+class LetsJSONGenerationError(LetsJSONError):
     pass
 
 
-class AnyJSON:
+class LetsJSON:
     def __init__(self, client: Any, repeat: int = 3, model: str = "gpt-4.1-mini") -> None:
         if repeat < 1:
             raise ValueError("repeat must be >= 1")
@@ -40,7 +40,7 @@ class AnyJSON:
             except Exception as exc:  # noqa: BLE001
                 last_error = exc
 
-        raise AnyJSONGenerationError(
+        raise LetsJSONGenerationError(
             f"Failed to generate valid JSON after {self.repeat} attempts. "
             f"Last error: {last_error}"
         )
@@ -94,7 +94,7 @@ class AnyJSON:
                 if isinstance(content, str):
                     return content
 
-        raise AnyJSONGenerationError(
+        raise LetsJSONGenerationError(
             "Unsupported client: expected OpenAI client with responses.create or "
             "chat.completions.create."
         )
@@ -112,7 +112,7 @@ class AnyJSON:
             except json.JSONDecodeError:
                 continue
 
-        raise AnyJSONValidationError("Model output is not valid JSON.")
+        raise LetsJSONValidationError("Model output is not valid JSON.")
 
     def _extract_json_candidates(self, text: str) -> list[str]:
         candidates: list[str] = []
@@ -155,15 +155,15 @@ class AnyJSON:
     def _validate(self, data: Any, schema: Any, path: str = "root") -> None:
         if isinstance(schema, dict):
             if not isinstance(data, dict):
-                raise AnyJSONValidationError(f"{path} must be an object")
+                raise LetsJSONValidationError(f"{path} must be an object")
             expected_keys = set(schema.keys())
             actual_keys = set(data.keys())
             missing = expected_keys - actual_keys
             extra = actual_keys - expected_keys
             if missing:
-                raise AnyJSONValidationError(f"{path} missing keys: {sorted(missing)}")
+                raise LetsJSONValidationError(f"{path} missing keys: {sorted(missing)}")
             if extra:
-                raise AnyJSONValidationError(f"{path} has unexpected keys: {sorted(extra)}")
+                raise LetsJSONValidationError(f"{path} has unexpected keys: {sorted(extra)}")
             for key, sub_schema in schema.items():
                 self._validate(data[key], sub_schema, f"{path}.{key}")
             return
@@ -172,7 +172,7 @@ class AnyJSON:
             if len(schema) != 1:
                 raise TypeError("List schema must contain exactly one element schema.")
             if not isinstance(data, list):
-                raise AnyJSONValidationError(f"{path} must be a list")
+                raise LetsJSONValidationError(f"{path} must be a list")
             for idx, item in enumerate(data):
                 self._validate(item, schema[0], f"{path}[{idx}]")
             return
@@ -180,33 +180,33 @@ class AnyJSON:
         if isinstance(schema, type):
             if schema is int:
                 if not (isinstance(data, int) and not isinstance(data, bool)):
-                    raise AnyJSONValidationError(f"{path} must be int")
+                    raise LetsJSONValidationError(f"{path} must be int")
                 return
             if schema is float:
                 if not (
                     (isinstance(data, float) and not isinstance(data, bool))
                     or (isinstance(data, int) and not isinstance(data, bool))
                 ):
-                    raise AnyJSONValidationError(f"{path} must be float")
+                    raise LetsJSONValidationError(f"{path} must be float")
                 return
             if schema is bool:
                 if not isinstance(data, bool):
-                    raise AnyJSONValidationError(f"{path} must be bool")
+                    raise LetsJSONValidationError(f"{path} must be bool")
                 return
             if schema is str:
                 if not isinstance(data, str):
-                    raise AnyJSONValidationError(f"{path} must be str")
+                    raise LetsJSONValidationError(f"{path} must be str")
                 return
             if schema is list:
                 if not isinstance(data, list):
-                    raise AnyJSONValidationError(f"{path} must be list")
+                    raise LetsJSONValidationError(f"{path} must be list")
                 return
             if schema is dict:
                 if not isinstance(data, dict):
-                    raise AnyJSONValidationError(f"{path} must be object")
+                    raise LetsJSONValidationError(f"{path} must be object")
                 return
             if not isinstance(data, schema):
-                raise AnyJSONValidationError(f"{path} must be {schema.__name__}")
+                raise LetsJSONValidationError(f"{path} must be {schema.__name__}")
             return
 
         raise TypeError(f"Unsupported schema spec at {path}: {schema!r}")

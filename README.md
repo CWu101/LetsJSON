@@ -1,4 +1,4 @@
-# AnyJSON
+# LetsJSON
 
 让模型输出强约束 JSON：
 - 按 schema 校验字段与类型
@@ -13,10 +13,10 @@ uv sync
 
 ```python
 from openai import OpenAI
-from anyjson import AnyJSON
+from letsjson import LetsJSON
 
 client = OpenAI()  # 自动读取 OPENAI_API_KEY
-generator = AnyJSON(client, repeat=3)  # repeat 可选，默认 3
+generator = LetsJSON(client, repeat=3)  # repeat 可选，默认 3
 
 result = generator.gen(
     "把西红柿炒蛋任务分解最后一个任务是int1",
@@ -30,4 +30,4 @@ print(result)
 - 返回值：`dict`
 - 必须和 schema 键完全一致（不允许缺失或多余）
 - 类型严格校验（例如 `int` 不接受 `bool`）
-- 所有尝试失败后抛出 `AnyJSONGenerationError`
+- 所有尝试失败后抛出 `LetsJSONGenerationError`
