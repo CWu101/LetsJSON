@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import re
+from collections.abc import Callable
 from typing import Any
 from typing import Literal
 
@@ -40,6 +41,37 @@ class LetsJSON:
             full_prompt = self._build_prompt(prompt, schema, attempt, last_error)
             try:
                 raw = self._call_model(full_prompt)
+                data = self._parse_json(raw)
+                self._validate(data, schema)
+                return data
+            except Exception as exc:  # noqa: BLE001
+                last_error = exc
+
+        if on_failure == "none":
+            return None
+
+        raise LetsJSONGenerationError(
+            f"Failed to generate valid JSON after {self.repeat} attempts. "
+            f"Last error: {last_error}"
+        )
+
+    def gen_stream(
+        self,
+        prompt: str,
+        schema: dict[str, Any],
+        on_failure: Literal["raise", "none"] = "raise",
+        on_chunk: Callable[[str], None] | None = None,
+    ) -> dict[str, Any] | None:
+        if not isinstance(schema, dict):
+            raise TypeError("schema must be a dict")
+        if on_failure not in {"raise", "none"}:
+            raise ValueError("on_failure must be 'raise' or 'none'")
+
+        last_error: Exception | None = None
+        for attempt in range(1, self.repeat + 1):
+            full_prompt = self._build_prompt(prompt, schema, attempt, last_error)
+            try:
+                raw = self._call_model_stream(full_prompt, on_chunk=on_chunk)
                 data = self._parse_json(raw)
                 self._validate(data, schema)
                 return data
@@ -115,6 +147,69 @@ class LetsJSON:
             raise LetsJSONGenerationError(
                 "chat.completions.create failed and no compatible responses.create fallback "
                 f"succeeded. Original error: {chat_error}"
+            )
+
+        raise LetsJSONGenerationError(
+            "Unsupported client: expected OpenAI client with chat.completions.create or "
+            "responses.create."
+        )
+
+    def _call_model_stream(self, prompt: str, on_chunk: Callable[[str], None] | None = None) -> str:
+        chat_error: Exception | None = None
+        chat = getattr(self.client, "chat", None)
+        completions = getattr(chat, "completions", None) if chat is not None else None
+        if completions is not None and hasattr(completions, "create"):
+            try:
+                stream = completions.create(
+                    model=self.model, messages=[{"role": "user", "content": prompt}], stream=True
+                )
+                chunks: list[str] = []
+                for event in stream:
+                    choices = getattr(event, "choices", None) or []
+                    if not choices:
+                        continue
+                    delta = getattr(choices[0], "delta", None)
+                    content = getattr(delta, "content", None)
+                    if isinstance(content, str):
+                        chunks.append(content)
+                        if on_chunk is not None:
+                            on_chunk(content)
+                        continue
+                    if isinstance(content, list):
+                        for part in content:
+                            part_text = getattr(part, "text", None)
+                            if isinstance(part_text, str):
+                                chunks.append(part_text)
+                                if on_chunk is not None:
+                                    on_chunk(part_text)
+                if chunks:
+                    return "".join(chunks)
+            except Exception as exc:  # noqa: BLE001
+                chat_error = exc
+
+        responses = getattr(self.client, "responses", None)
+        if responses is not None and hasattr(responses, "create"):
+            try:
+                stream = responses.create(model=self.model, input=prompt, stream=True)
+                chunks: list[str] = []
+                for event in stream:
+                    event_type = getattr(event, "type", None)
+                    if event_type == "response.output_text.delta":
+                        delta = getattr(event, "delta", None)
+                        if isinstance(delta, str):
+                            chunks.append(delta)
+                            if on_chunk is not None:
+                                on_chunk(delta)
+                if chunks:
+                    return "".join(chunks)
+            except Exception:  # noqa: BLE001
+                pass
+
+        if chat_error is not None:
+            raise LetsJSONGenerationError(
+                "chat.completions.create(stream=True) failed and no compatible "
+                "responses.create(stream=True) fallback succeeded. "
+                f"Original error: {chat_error}"
             )
 
         raise LetsJSONGenerationError(

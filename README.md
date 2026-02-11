@@ -11,6 +11,7 @@ Generate strongly constrained JSON from LLM outputs:
 - Validate fields and types against your schema
 - Auto-retry on invalid outputs (default: 3 attempts)
 - Raise an error if all retries fail or return empty value
+- It's very liteweight, with only 230+ lines of code.
 
 ## Installation
 
@@ -41,6 +42,15 @@ schema = {
     "steps": [{"time": str, "location": str, "detail": str}],
 }
 result = generator.gen("Give me a 2-day London travel plan", schema)
+print(result)
+
+# Streaming output (optional)
+result = generator.gen_stream(
+    "Give me a 2-day London travel plan",
+    schema,
+    on_chunk=lambda chunk: print(chunk, end="", flush=True),
+)
+print("\n--- parsed json ---")
 print(result)
 
 # return:

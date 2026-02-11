@@ -36,6 +36,15 @@ schema = {
 }
 result = generator.gen("给我一个2天1夜的上海旅游计划", schema)
 print(result)
+
+# 流式输出（可选）
+result = generator.gen_stream(
+    '''给我一个2天1夜的上海旅游计划''',
+    schema,
+    on_chunk=lambda chunk: print(chunk, end="", flush=True),
+)
+print("\n--- parsed json ---")
+print(result)
 ```
 
 ## Schema 支持
