@@ -6,6 +6,8 @@ from collections.abc import Callable
 from typing import Any
 from typing import Literal
 
+from openai import OpenAI
+
 
 class LetsJSONError(Exception):
     pass
@@ -20,11 +22,18 @@ class LetsJSONGenerationError(LetsJSONError):
 
 
 class LetsJSON:
-    def __init__(self, client: Any, model: str, repeat: int = 3) -> None:
-        if repeat < 1:
-            raise ValueError("repeat must be >= 1")
-        self.client = client
+    def __init__(
+        self, *, base_url: str, model: str, api_key: str, temperature: float = 0.2, repeat: int = 3
+    ) -> None:
+        if not model:
+            raise ValueError("model is required")
+        if not api_key:
+            raise ValueError("api_key is required")
+        if not base_url:
+            raise ValueError("base_url is required")
+        self.client = OpenAI(api_key=api_key, base_url=base_url)
         self.repeat = repeat
+        self.temperature = temperature
         self.model = model
 
     def gen(
@@ -110,7 +119,9 @@ class LetsJSON:
         if completions is not None and hasattr(completions, "create"):
             try:
                 result = completions.create(
-                    model=self.model, messages=[{"role": "user", "content": prompt}]
+                    model=self.model,
+                    temperature=self.temperature,
+                    messages=[{"role": "user", "content": prompt}],
                 )
                 choices = getattr(result, "choices", None) or []
                 if choices:
@@ -124,7 +135,9 @@ class LetsJSON:
         responses = getattr(self.client, "responses", None)
         if responses is not None and hasattr(responses, "create"):
             try:
-                result = responses.create(model=self.model, input=prompt)
+                result = responses.create(
+                    model=self.model, temperature=self.temperature, input=prompt
+                )
                 text = getattr(result, "output_text", None)
                 if isinstance(text, str) and text.strip():
                     return text
@@ -161,7 +174,10 @@ class LetsJSON:
         if completions is not None and hasattr(completions, "create"):
             try:
                 stream = completions.create(
-                    model=self.model, messages=[{"role": "user", "content": prompt}], stream=True
+                    model=self.model,
+                    temperature=self.temperature,
+                    messages=[{"role": "user", "content": prompt}],
+                    stream=True,
                 )
                 chunks: list[str] = []
                 for event in stream:
@@ -190,7 +206,12 @@ class LetsJSON:
         responses = getattr(self.client, "responses", None)
         if responses is not None and hasattr(responses, "create"):
             try:
-                stream = responses.create(model=self.model, input=prompt, stream=True)
+                stream = responses.create(
+                    model=self.model,
+                    temperature=self.temperature,
+                    input=prompt,
+                    stream=True,
+                )
                 chunks: list[str] = []
                 for event in stream:
                     event_type = getattr(event, "type", None)

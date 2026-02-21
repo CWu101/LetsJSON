@@ -28,14 +28,15 @@ pip install letsjson
 ## Usage
 
 ```python
-from openai import OpenAI
+import os
 from letsjson import LetsJSON
 
-client = OpenAI(
-    api_key="your API key",
-    base_url="your API base URL",
+generator = LetsJSON(
+    base_url=os.getenv("OPENAI_BASE_URL"),
+    model=os.getenv("OPENAI_MODEL"),
+    api_key=os.getenv("OPENAI_API_KEY"),
+    temperature=0.2,  # optional
 )
-generator = LetsJSON(client, model="your model name")  # repeat is optional, default is 3
 
 schema = {
     "title": str,
